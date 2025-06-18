@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/chat/mood';
 const MoodSelector = () => {
   const [mood, setMood] = useState('');
   const [message, setMessage] = useState('');
 
   const moods = ['happy', 'sad', 'stressed', 'excited'];
 
+  
   const handleMoodSubmit = async () => {
     if (!mood) {
+        console.log("Entered MoodSelector component");
       setMessage('Please select a mood.');
       return;
     }
 
     try {
-      const response = await axios.post('http://localhost:3000/api/mood', { mood });
+      const response = await axios.post(`${API_URL}/chat/mood`, { mood });
       setMessage(`Mood recorded: ${response.data.mood}`);
     } catch (error) {
       console.error('Error recording mood:', error);

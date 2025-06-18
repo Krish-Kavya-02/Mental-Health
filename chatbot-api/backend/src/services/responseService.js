@@ -1,30 +1,34 @@
-async function getResponse(message) {
-  // Dummy logic – NLP integration in future
-  if (message.toLowerCase().includes("sad")) {
-    return "I'm here for you. Want to log how you're feeling?";
-  } else if (message.toLowerCase().includes("happy")) {
-    return "That's great to hear! Would you like to track your mood today?";
+import { connectDB } from '../config/db.js';
+/**
+ * responseService.js
+ * This service handles chat responses, mood recording, and suggestions.
+ */
+export function getResponse(message) {
+  const msg = message.toLowerCase();
+
+  if (msg.includes('hello') || msg.includes('hi')) {
+    return 'Hello! How can I help you today?';
   }
-  return "Tell me more about what's on your mind.";
+  if (msg.includes('how are you')) {
+    return 'I’m doing great, thanks for asking! How about you?';
+  }
+  if (msg.includes('bye')) {
+    return 'Goodbye! Have a great day!';
+  }
+  return 'I’m not sure how to respond to that. Try saying "hello" or "how are you".';
 }
-
-const responseService = {
-  getResponse,
-  getChatResponse: (message) => {
-    // Placeholder for chatbot logic (to be integrated with nlp-engine on Days 8-9)
-    return `Echo: ${message}`;
-  },
-
-  recordMood: (mood) => {
-    // Placeholder for mood-tracker integration (to be connected on Days 10-11)
-    return { status: 'Mood recorded', mood };
-  },
-
-  getSuggestions: () => {
-    // Placeholder for suggestions (to be enhanced on Days 10-11)
-    return ['Try a calming activity', 'Listen to music'];
+export async function recordMood(mood) {
+  try {
+    const db = await connectDB();
+    const collection = db.collection('moods');
+    const timestamp = new Date();
+    const result = await collection.insertOne({ mood, timestamp });
+    return { status: 'Mood recorded', mood, id: result.insertedId };
+  } catch (error) {
+    console.error('Error recording mood:', error);
+    throw new Error('Failed to record mood');
   }
-};
-
-export { getResponse, responseService };
-// chatbot-api/src/services/responseService.js
+}
+export function getSuggestions() {
+  return ['Try a calming activity', 'Listen to music'];
+}
