@@ -1,6 +1,6 @@
 import { Router } from "express";
 const router = Router();
-import { getResponse } from "../services/responseService.js";
+import * as responseService from "../services/responseService.js";
 
 router.post("/", async (req, res) => {
   const { message } = req.body;
@@ -10,7 +10,7 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const response = await getResponse(message);
+    const response = responseService.getResponse(message);
     res.status(200).json({ response });
   } catch (error) {
     console.error("Error in chat route:", error);
@@ -18,13 +18,17 @@ router.post("/", async (req, res) => {
   }
 });
 
-// mood api
-router.post('/mood', (req, res) => {
+// mood api//POST
+router.post('/mood', async (req, res) => {
   const { mood } = req.body;
   if (!mood) return res.status(400).json({ error: 'Mood required' });
 
-  const result = responseService.recordMood(mood);
-  res.json(result);
+  try {
+    const result = await responseService.recordMood(mood);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to record mood" });
+  }
 });
 
 // GET /api/suggestions
