@@ -2,12 +2,19 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from langchain_ollama import OllamaLLM
+from langchain_community.llms import Ollama
 from langchain.prompts import PromptTemplate
+from langdetect import detect
 import time
 
+def is_english(text):
+    try:
+        return detect(text) == "en"
+    except:
+        return False
+
 def create_rag_pipeline():
-    # Initialize the HuggingFace embeddings
+    # Initialize HuggingFace embeddings
     huggingface_embeddings = HuggingFaceEmbeddings(
         model_name="all-MiniLM-L6-v2",
         model_kwargs={'device': 'cpu'},
@@ -23,26 +30,27 @@ def create_rag_pipeline():
 
     retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
-    # Define the main prompt template (RAG-style: context + question)
+    # Main prompt template (RAG)
     prompt_template = PromptTemplate(
         input_variables=["context", "question"],
         template="""
-        You are a helpful and empathetic mental health assistant.
-        Only use the context provided below to answer the question.
-        If the context is irrelevant or missing, say: "I'm sorry, I couldn't find information to help with that."
+You are a helpful and empathetic mental health assistant.
+Always respond only in English, even if the user's question contains another language.
+Only use the context provided below to answer the question.
+If the context is irrelevant or missing, say: "I'm sorry, I couldn't find information to help with that."
 
-        Context:
-        {context}
+Context:
+{context}
 
-        Question:
-        {question}
+Question:
+{question}
 
-        Answer:""".strip()
+Answer:""".strip()
     )
 
-    # Initialize the Ollama LLM
-    llm = OllamaLLM(
-        model="gemma3:1b",
+    # Initialize Ollama LLM
+    llm = Ollama(
+        model="phi3:3.8b",  # or any model you prefer
         temperature=0.1,
     )
 
@@ -54,7 +62,7 @@ def create_rag_pipeline():
         output_key="answer"
     )
 
-    # Create the ConversationalRetrievalChain (fixed prompt usage)
+    # Create the ConversationalRetrievalChain
     rag_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
@@ -67,21 +75,22 @@ def create_rag_pipeline():
     followup_prompt = PromptTemplate(
         input_variables=["chat_history", "input"],
         template="""
-        You are a helpful and empathetic mental health assistant.
+You are a helpful and empathetic mental health assistant. Always respond only in English.
 
-        A user previously asked: "{chat_history}"
-        You responded with: "{input}"
+A user previously asked: "{chat_history}"
+You responded with: "{input}"
 
-        Based on this conversation, suggest 2-3 relevant and thoughtful follow-up questions or next steps the user might ask or explore. These should be supportive and conversational, keeping the mental health tone in mind.
+Based on this conversation, suggest 2–3 relevant and thoughtful follow-up questions or next steps the user might ask or explore. These should be supportive and conversational, keeping the mental health tone in mind.
 
-        Only output the suggestions, each on a new line without numbering.
-        """.strip()
+Only output the suggestions, each on a new line without numbering.
+""".strip()
     )
 
-    # RAG question + follow-up wrapper
+    # Main query function
     def ask_with_followups(question, chat_history):
         start = time.time()
-        # Convert chat_history to a list of strings if needed
+
+        # Format chat history
         formatted_history = []
         for entry in chat_history:
             if isinstance(entry, tuple) and len(entry) == 2:
@@ -92,15 +101,22 @@ def create_rag_pipeline():
         result = rag_chain.invoke({"question": question, "chat_history": formatted_history})
         end = time.time()
 
-        # Defensive: get answer from result
-        answer = result.get('answer', result.get('result', ''))
+        # Get answer defensively
+        answer = result.get("answer", result.get("result", ""))
 
-        # Use the actual chat history in the follow-up prompt
+        # Language check
+        if not is_english(answer):
+            answer = "Sorry, something went wrong. Let's try again in English."
+
+        # Follow-up suggestions
         formatted_prompt = followup_prompt.format(
             chat_history="\n".join(formatted_history + [f"user: {question}"]),
             input=answer
         )
+
         suggestions = llm.invoke(formatted_prompt)
+        if not is_english(suggestions):
+            suggestions = "Sorry, I couldn't generate follow-up suggestions in English."
 
         return {
             "answer": answer,

@@ -1,8 +1,6 @@
 import streamlit as st
 import time
 from ragpipeline import create_rag_pipeline
- 
-from langchain_ollama import OllamaLLM
 
 st.set_page_config(
     page_title="🧠 MindMate Chatbot",

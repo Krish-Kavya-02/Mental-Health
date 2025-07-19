@@ -5,13 +5,9 @@ langchain_community
 langserve
 fastapi
 uvicorn
-sse_starlette
 chromadb
-groq
-cassio
-beautifulsoup4
-arxiv
-langchainhub
+transformers
 sentence_transformers
-PyPDF2
-langchain-objectbox
+torch
+accelerate
+bitsandbytes
