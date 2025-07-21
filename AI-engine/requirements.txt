@@ -11,3 +11,6 @@ sentence_transformers
 torch
 accelerate
 bitsandbytes
+langdetect
+datasets
+numpy
