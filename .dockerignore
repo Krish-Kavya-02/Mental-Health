@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.pkl
+*.pt
+*.bin
+*.ipynb
+node_modules/
+.env
+*.model
