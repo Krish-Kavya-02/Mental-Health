@@ -1,4 +1,5 @@
 # Mental-Health
+```
 mindmate/
 │
 ├── chatbot-api/        → Handles message logic
@@ -9,3 +10,4 @@ mindmate/
 ├── .github/workflows/  → GitHub Actions CI/CD pipelines
 ├── docker-compose.yml  → For local dev/testing
 └── README.md
+```
