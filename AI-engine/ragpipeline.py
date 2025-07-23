@@ -1,17 +1,19 @@
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from langchain.prompts import PromptTemplate
 from langdetect import detect
 import time
+
 
 def is_english(text):
     try:
         return detect(text) == "en"
     except:
         return False
+
 
 def create_rag_pipeline():
     # Initialize HuggingFace embeddings
@@ -21,7 +23,7 @@ def create_rag_pipeline():
         encode_kwargs={'normalize_embeddings': True}
     )
 
-    # Create a Chroma vector store
+    # Load Chroma vector store
     vector_store = Chroma(
         collection_name="example_collection",
         embedding_function=huggingface_embeddings,
@@ -30,14 +32,22 @@ def create_rag_pipeline():
 
     retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
-    # Main prompt template (RAG)
+    # Prompt template
     prompt_template = PromptTemplate(
         input_variables=["context", "question"],
         template="""
 You are a helpful and empathetic mental health assistant.
-Always respond only in English, even if the user's question contains another language.
-Only use the context provided below to answer the question.
-If the context is irrelevant or missing, say: "I'm sorry, I couldn't find information to help with that."
+
+Your task is to ONLY answer the user's question using the context provided below.
+You are NOT allowed to use external facts or make assumptions.
+If the context is missing or irrelevant to the question, respond strictly with:
+"I'm sorry, I couldn't find information to help with that."
+
+If the context is missing but the query is clearly about mental health,
+you may use your general knowledge to provide a helpful answer.
+
+Always respond in a supportive and understanding tone, as if you are a mental health professional.
+Always respond in English.
 
 Context:
 {context}
@@ -49,12 +59,12 @@ Answer:""".strip()
     )
 
     # Initialize Ollama LLM
-    llm = Ollama(
-        model="phi3:3.8b",  # or any model you prefer
+    llm = OllamaLLM(
+        model="phi3:3.8b",
         temperature=0.1,
     )
 
-    # Memory for conversation
+    # Memory
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True,
@@ -62,7 +72,7 @@ Answer:""".strip()
         output_key="answer"
     )
 
-    # Create the ConversationalRetrievalChain
+    # Build RAG chain
     rag_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
@@ -71,7 +81,7 @@ Answer:""".strip()
         combine_docs_chain_kwargs={"prompt": prompt_template}
     )
 
-    # Follow-up generator prompt
+    # Follow-up suggestion prompt
     followup_prompt = PromptTemplate(
         input_variables=["chat_history", "input"],
         template="""
@@ -86,7 +96,7 @@ Only output the suggestions, each on a new line without numbering.
 """.strip()
     )
 
-    # Main query function
+    # Final wrapper function
     def ask_with_followups(question, chat_history):
         start = time.time()
 
@@ -98,17 +108,28 @@ Only output the suggestions, each on a new line without numbering.
             else:
                 formatted_history.append(str(entry))
 
-        result = rag_chain.invoke({"question": question, "chat_history": formatted_history})
+        # Invoke RAG chain
+        result = rag_chain.invoke({
+            "question": question,
+            "chat_history": formatted_history
+        })
+
+        # DEBUG: Print source documents
+        print("SOURCE DOCUMENTS:")
+        for doc in result.get("source_documents", []):
+            print(doc.page_content[:500])  # print first 500 characters to keep it readable
+            print("-----")
+
         end = time.time()
 
-        # Get answer defensively
+        # Extract answer safely
         answer = result.get("answer", result.get("result", ""))
 
         # Language check
         if not is_english(answer):
             answer = "Sorry, something went wrong. Let's try again in English."
 
-        # Follow-up suggestions
+        # Generate follow-up suggestions
         formatted_prompt = followup_prompt.format(
             chat_history="\n".join(formatted_history + [f"user: {question}"]),
             input=answer
