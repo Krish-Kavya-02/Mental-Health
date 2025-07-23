@@ -3,14 +3,9 @@ python-dotenv
 streamlit
 langchain_community
 langserve
-fastapi
-uvicorn
 chromadb
 transformers
 sentence_transformers
-torch
-accelerate
-bitsandbytes
 langdetect
 datasets
 numpy

@@ -1,6 +1,10 @@
 import streamlit as st
 import time
 from ragpipeline import create_rag_pipeline
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Page config
 st.set_page_config(

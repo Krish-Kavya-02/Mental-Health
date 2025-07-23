@@ -1,17 +1,27 @@
 FROM python:3.9-slim
-# Set the working directory
+
+# Set working directory
 WORKDIR /app
-# Copy the requirements file into the container
-COPY . /app/
-# Change the working directory to the AI-engine folder
-WORKDIR /app/AI-engine
-# Create a virtual environment
-RUN python -m venv .venv
-# Activate the virtual environment and install dependencies
-RUN .venv/bin/pip install --upgrade pip && \
-    .venv/bin/pip install -r requirements.txt
-# Expose the port for Streamlit
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python packages
+COPY AI-engine/requirements.txt .
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+
+# Copy your application files
+COPY . .
+
+# Expose a port (change if you're using FastAPI, Streamlit, etc.)
 EXPOSE 8501
-# Activate the virtual environment
-# Run the application
-CMD [".venv/bin/python", "-m", "streamlit", "run", "llama.py"]
+
+# Default command — update based on your entrypoint
+CMD ["streamlit", "run", "AI-engine/llama.py"]

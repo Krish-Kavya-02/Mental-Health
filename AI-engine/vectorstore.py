@@ -3,6 +3,10 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import CharacterTextSplitter
 from langchain.schema import Document
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_vector_store():
     # Load the dataset

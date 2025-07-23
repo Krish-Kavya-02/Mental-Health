@@ -1,10 +1,29 @@
+# Ignore virtual environment
 .venv/
+venv/
+
+# Python cache files
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Model and binary files
 *.pkl
 *.pt
 *.bin
-*.ipynb
-node_modules/
-.env
 *.model
+
+# Jupyter notebooks (optional if not needed in container)
+*.ipynb
+
+# Node (in case any frontend stuff appears)
+node_modules/
+
+# Databases (if local dev only)
+chroma_db/
+rag/chroma_db/
+*.sqlite3
+
+# Logs and system files
+*.log
+.DS_Store
+Thumbs.db
