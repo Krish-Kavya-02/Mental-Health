@@ -36,30 +36,28 @@ def create_rag_pipeline():
     prompt_template = PromptTemplate(
         input_variables=["context", "question"],
         template="""
-You are a helpful and empathetic mental health assistant.
+        You are a supportive and empathetic mental health chatbot named "Mira".
 
-Your task is to ONLY answer the user's question using the context provided below.
-You are NOT allowed to use external facts or make assumptions.
-If the context is missing or irrelevant to the question, respond strictly with:
-"I'm sorry, I couldn't find information to help with that."
+        Your job is to listen, validate, and respond with compassion — just like a therapist might in a friendly conversation.
 
-If the context is missing but the query is clearly about mental health,
-you may use your general knowledge to provide a helpful answer.
+        - If the context contains useful information, use it in your response.
+        - If context is missing, still respond empathetically and encourage the user.
+        - Never say "I'm sorry I couldn't help" outright — instead, validate the emotion and offer a gentle nudge or suggestion.
+        - Only respond to questions related to emotions, stress, relationships, or mental well-being. If the query is unrelated (e.g., about tech or programming), kindly guide the user back to mental health topics, in such cases  say "Ican't help you with that, but I'm here to talk about how you're feeling or what's on your mind."
+        - Always speak in a warm, caring tone.
+        - Avoid clinical jargon unless absolutely necessary.
 
-Always respond in a supportive and understanding tone, as if you are a mental health professional.
-Always respond in English.
+        Context:
+        {context}
 
-Context:
-{context}
+        User: {question}
 
-Question:
-{question}
-
-Answer:""".strip()
+        Mira:""".strip()
     )
 
     # Initialize Ollama LLM
     llm = OllamaLLM(
+        base_url= "http://host.docker.internal:11434",
         model="phi3:3.8b",
         temperature=0.1,
     )
@@ -85,15 +83,17 @@ Answer:""".strip()
     followup_prompt = PromptTemplate(
         input_variables=["chat_history", "input"],
         template="""
-You are a helpful and empathetic mental health assistant. Always respond only in English.
+            You're Mira, an empathetic mental health chatbot.
 
-A user previously asked: "{chat_history}"
-You responded with: "{input}"
+            Based on the conversation so far, suggest 2–3 gentle follow-up replies Mira could say next. These should be friendly, warm, and show that you're listening and care.
 
-Based on this conversation, suggest 2–3 relevant and thoughtful follow-up questions or next steps the user might ask or explore. These should be supportive and conversational, keeping the mental health tone in mind.
+            Chat History:
+            {chat_history}
 
-Only output the suggestions, each on a new line without numbering.
-""".strip()
+            Last Response:
+            {input}
+
+            Mira's possible next responses (one per line):""".strip()
     )
 
     # Final wrapper function
@@ -126,8 +126,8 @@ Only output the suggestions, each on a new line without numbering.
         answer = result.get("answer", result.get("result", ""))
 
         # Language check
-        if not is_english(answer):
-            answer = "Sorry, something went wrong. Let's try again in English."
+        if not is_english(answer) or not answer.strip():
+            answer = "I'm here for you. It sounds like you're going through a lot — would you like to talk more about what's bothering you?"
 
         # Generate follow-up suggestions
         formatted_prompt = followup_prompt.format(
@@ -140,9 +140,9 @@ Only output the suggestions, each on a new line without numbering.
             suggestions = "Sorry, I couldn't generate follow-up suggestions in English."
 
         return {
-            "answer": answer,
-            "source_documents": result.get("source_documents", []),
-            "followups": suggestions.strip().split("\n"),
+            "reply": answer.strip(),
+            "source_documents": [doc.page_content for doc in result.get("source_documents", [])],
+            "followups": [s.strip() for s in suggestions.strip().split("\n") if s.strip()],
             "response_time": round(end - start, 2)
         }
 

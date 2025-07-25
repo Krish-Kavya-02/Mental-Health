@@ -24,4 +24,4 @@ COPY . .
 EXPOSE 8501
 
 # Default command — update based on your entrypoint
-CMD ["streamlit", "run", "AI-engine/llama.py"]
+CMD ["/app/entrypoint.sh"]

@@ -133,7 +133,7 @@ if user_input:
     elapsed_time = round(end_time - start_time, 2)
     print(f"🕒 Model response time: {elapsed_time} sec")  # Backend log
 
-    answer = response.get("answer", response.get("result", ""))
+    answer = response.get("reply", "Sorry, something went wrong.")
     st.session_state.chat_history.append(("assistant", answer))
 
     st.rerun()
