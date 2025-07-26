@@ -8,4 +8,4 @@ python AI-engine/vectorstore.py
 python AI-engine/ragpipeline.py
 
 # Step 3: Start the Streamlit app
-streamlit run AI-engine/llama.py
+streamlit run AI-engine/llama.py --server.port 7860 --server.address 0.0.0.0
