@@ -35,4 +35,4 @@ RUN mkdir -p /app/hf_cache && chmod -R 777 /app/hf_cache
 EXPOSE 8501
 
 # Entrypoint
-CMD ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
