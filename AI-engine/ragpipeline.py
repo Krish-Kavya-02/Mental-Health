@@ -6,7 +6,7 @@ from langchain_ollama import OllamaLLM
 from langchain.prompts import PromptTemplate
 from langdetect import detect
 import time
-
+import os
 
 def is_english(text):
     try:
@@ -14,25 +14,24 @@ def is_english(text):
     except:
         return False
 
-
 def create_rag_pipeline():
-    # Initialize HuggingFace embeddings
+    # ✅ 1. Load embeddings
     huggingface_embeddings = HuggingFaceEmbeddings(
         model_name="all-MiniLM-L6-v2",
-        model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True}
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True}
     )
 
-    # Load Chroma vector store
+    # ✅ 2. Load Chroma vector store in local (embedded) mode — avoids tenant error
     vector_store = Chroma(
-        collection_name="example_collection",
+        persist_directory="./chroma_db",
         embedding_function=huggingface_embeddings,
-        persist_directory="./chroma_db"
+        collection_name="example_collection"  # must match your vectorstore.py
     )
 
     retriever = vector_store.as_retriever(search_kwargs={"k": 2})
 
-    # Prompt template
+    # ✅ 3. Prompt for the RAG chain
     prompt_template = PromptTemplate(
         input_variables=["context", "question"],
         template="""
@@ -43,7 +42,9 @@ def create_rag_pipeline():
         - If the context contains useful information, use it in your response.
         - If context is missing, still respond empathetically and encourage the user.
         - Never say "I'm sorry I couldn't help" outright — instead, validate the emotion and offer a gentle nudge or suggestion.
-        - Only respond to questions related to emotions, stress, relationships, or mental well-being. If the query is unrelated (e.g., about tech or programming), kindly guide the user back to mental health topics, in such cases  say "Ican't help you with that, but I'm here to talk about how you're feeling or what's on your mind."
+        - Only respond to questions related to emotions, stress, relationships, or mental well-being.
+        If the query is unrelated (e.g., about tech or programming), kindly guide the user back to mental health topics — for example: 
+        "I can't help you with that, but I'm here to talk about how you're feeling or what's on your mind."
         - Always speak in a warm, caring tone.
         - Avoid clinical jargon unless absolutely necessary.
 
@@ -55,14 +56,14 @@ def create_rag_pipeline():
         Mira:""".strip()
     )
 
-    # Initialize Ollama LLM
+    # ✅ 4. Set up Ollama LLM
     llm = OllamaLLM(
-        base_url= "http://host.docker.internal:11434",
+        base_url="http://host.docker.internal:11434",  # works inside Docker
         model="phi3:3.8b",
         temperature=0.1,
     )
 
-    # Memory
+    # ✅ 5. Memory for conversational history
     memory = ConversationBufferMemory(
         memory_key="chat_history",
         return_messages=True,
@@ -70,7 +71,7 @@ def create_rag_pipeline():
         output_key="answer"
     )
 
-    # Build RAG chain
+    # ✅ 6. Conversational RAG chain
     rag_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=retriever,
@@ -79,28 +80,28 @@ def create_rag_pipeline():
         combine_docs_chain_kwargs={"prompt": prompt_template}
     )
 
-    # Follow-up suggestion prompt
+    # ✅ 7. Follow-up response generation prompt
     followup_prompt = PromptTemplate(
         input_variables=["chat_history", "input"],
         template="""
-            You're Mira, an empathetic mental health chatbot.
+        You're Mira, an empathetic mental health chatbot.
 
-            Based on the conversation so far, suggest 2–3 gentle follow-up replies Mira could say next. These should be friendly, warm, and show that you're listening and care.
+        Based on the conversation so far, suggest 2–3 gentle follow-up replies Mira could say next. 
+        These should be friendly, warm, and show that you're listening and care.
 
-            Chat History:
-            {chat_history}
+        Chat History:
+        {chat_history}
 
-            Last Response:
-            {input}
+        Last Response:
+        {input}
 
-            Mira's possible next responses (one per line):""".strip()
+        Mira's possible next responses (one per line):""".strip()
     )
 
-    # Final wrapper function
+    # ✅ 8. Final helper function
     def ask_with_followups(question, chat_history):
         start = time.time()
 
-        # Format chat history
         formatted_history = []
         for entry in chat_history:
             if isinstance(entry, tuple) and len(entry) == 2:
@@ -108,28 +109,22 @@ def create_rag_pipeline():
             else:
                 formatted_history.append(str(entry))
 
-        # Invoke RAG chain
         result = rag_chain.invoke({
             "question": question,
             "chat_history": formatted_history
         })
 
-        # DEBUG: Print source documents
         print("SOURCE DOCUMENTS:")
         for doc in result.get("source_documents", []):
-            print(doc.page_content[:500])  # print first 500 characters to keep it readable
+            print(doc.page_content[:500])
             print("-----")
 
         end = time.time()
-
-        # Extract answer safely
         answer = result.get("answer", result.get("result", ""))
 
-        # Language check
         if not is_english(answer) or not answer.strip():
             answer = "I'm here for you. It sounds like you're going through a lot — would you like to talk more about what's bothering you?"
 
-        # Generate follow-up suggestions
         formatted_prompt = followup_prompt.format(
             chat_history="\n".join(formatted_history + [f"user: {question}"]),
             input=answer

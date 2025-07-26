@@ -3,7 +3,7 @@ python-dotenv
 streamlit
 langchain_community
 langserve
-chromadb>=0.4.0
+chromadb>=0.4.24
 transformers
 sentence_transformers
 langdetect
