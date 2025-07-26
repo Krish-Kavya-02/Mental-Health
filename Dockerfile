@@ -25,8 +25,6 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Copy your application files
 COPY . .
 
-# 👇 Explicitly copy entrypoint.sh to /app
-COPY AI-engine/entrypoint.sh /app/entrypoint.sh
 
 # 👇 Add this after copying files
 RUN chmod +x /app/entrypoint.sh
